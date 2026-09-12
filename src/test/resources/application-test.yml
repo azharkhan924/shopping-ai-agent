@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+  ai:
+    openai:
+      api-key: test-key
+      chat:
+        options:
+          model: gpt-4o-mini
+
+jwt:
+  secret: test-secret-key-that-is-at-least-32-characters-long-for-testing
+  expiration: 86400000
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000
+
+shopping:
+  ai:
+    max-context-turns: 4
+    timeout-millis: 5000
+  search:
+    mode: mock

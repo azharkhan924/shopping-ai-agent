@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: shopping-agent-backend
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:h2:file:./data/shoppingdb;DB_CLOSE_DELAY=-1}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  jackson:
+    default-property-inclusion: non_null
+
+  ai:
+    openai:
+      base-url: ${AI_BASE_URL:https://api.groq.com/openai}
+      api-key: ${SPRING_AI_OPENAI_API_KEY:${AI_API_KEY:}}
+      chat:
+        options:
+          model: ${AI_MODEL:openai/gpt-oss-120b}
+
+server:
+  port: ${PORT:8081}
+
+jwt:
+  secret: ${JWT_SECRET:dGhpcy1pcy1hLXN1cGVyLXNlY3JldC1qd3Qta2V5LWZvci1sb2NhbC1kZXZlbG9wbWVudC1vbmx5}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+app:
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+shopping:
+  ai:
+    max-context-turns: 8
+    timeout-millis: 15000
+  search:
+    mode: ${SHOPPING_SEARCH_MODE:live}
+
+logging:
+  level:
+    root: INFO
+    com.shoppingagent: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
