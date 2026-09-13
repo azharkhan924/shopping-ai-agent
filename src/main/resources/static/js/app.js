@@ -660,7 +660,7 @@ function createProductCards(products) {
 
             const title = document.createElement('div');
             title.className = 'product-offers-title';
-            title.textContent = `Direct Store Links & Best Deals:`;
+            title.textContent = `Compare Prices & Buy Direct:`;
             offers.appendChild(title);
 
             product.offers.forEach(offer => {
@@ -675,7 +675,20 @@ function createProductCards(products) {
 
                 const price = document.createElement('span');
                 price.className = 'offer-price';
-                price.textContent = offer.price != null ? `₹${Math.round(offer.price).toLocaleString('en-IN')}` : '';
+                const hasRealPrice = offer.price != null && offer.price > 0;
+                if (hasRealPrice) {
+                    price.textContent = `₹${Math.round(offer.price).toLocaleString('en-IN')}`;
+                    // Check if this is the cheapest offer
+                    const allPrices = product.offers.filter(o => o.price != null && o.price > 0).map(o => o.price);
+                    if (allPrices.length > 1 && offer.price === Math.min(...allPrices)) {
+                        const cheapest = document.createElement('span');
+                        cheapest.className = 'cheapest-tag';
+                        cheapest.textContent = ' ← Cheapest';
+                        price.appendChild(cheapest);
+                    }
+                } else {
+                    price.textContent = '';
+                }
                 row.appendChild(price);
 
                 if (offer.productUrl) {
@@ -687,7 +700,13 @@ function createProductCards(products) {
                     link.target = '_blank';
                     link.rel = 'noopener noreferrer';
                     const targetStore = isFlipkart ? 'Flipkart' : (isAmazon ? 'Amazon.in' : (storeName || 'Store'));
-                    link.textContent = `Buy on ${targetStore} ↗`;
+
+                    if (hasRealPrice) {
+                        link.textContent = `Buy on ${targetStore} ↗`;
+                    } else {
+                        link.textContent = `Check Price on ${targetStore} ↗`;
+                        link.classList.add('btn-check-price');
+                    }
                     row.appendChild(link);
                 }
 

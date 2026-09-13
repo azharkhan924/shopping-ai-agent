@@ -22,12 +22,15 @@ class LiveProductSearchProviderTest {
     @Mock
     private ChatClient chatClient;
 
+    @Mock
+    private com.shoppingagent.search.provider.RealPriceScraper realPriceScraper;
+
     private LiveProductSearchProvider provider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        provider = new LiveProductSearchProvider(chatClient, objectMapper);
+        provider = new LiveProductSearchProvider(chatClient, objectMapper, realPriceScraper);
     }
 
     @Test

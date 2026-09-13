@@ -5,10 +5,7 @@ import com.shoppingagent.search.model.Product;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Module 6.3 — Groups duplicate products (same item, different stores) into ProductGroups.
@@ -47,36 +44,39 @@ public class ProductGroupingService {
                         .thenComparingInt(p -> p.getReviewCount() != null ? p.getReviewCount() : 0))
                 .orElse(products.get(0));
 
-        List<ProductOffer> offers = products.stream()
-                .map(this::toOffer)
-                .sorted(Comparator.comparing(o -> o.getPrice() != null ? o.getPrice() : BigDecimal.valueOf(Double.MAX_VALUE)))
-                .toList();
+        // Keep only the lowest price offer per unique store
+        Map<String, ProductOffer> storeMap = new LinkedHashMap<>();
+        for (Product p : products) {
+            ProductOffer offer = toOffer(p);
+            String storeKey = offer.getStore() != null ? offer.getStore().toLowerCase(Locale.ROOT) : "unknown";
+            ProductOffer existing = storeMap.get(storeKey);
+            if (existing == null || (offer.getPrice() != null && (existing.getPrice() == null || offer.getPrice().compareTo(existing.getPrice()) < 0))) {
+                storeMap.put(storeKey, offer);
+            }
+        }
+        List<ProductOffer> offers = new ArrayList<>(storeMap.values());
+        offers.sort(Comparator.comparing(o -> o.getPrice() != null ? o.getPrice() : BigDecimal.valueOf(Double.MAX_VALUE)));
 
         if (offers.size() == 1 && representative.getName() != null) {
+            // Only add a "check price" link to the other store — NO fabricated price
             ProductOffer mainOffer = offers.get(0);
             boolean isAmazon = mainOffer.getStore() != null && mainOffer.getStore().toLowerCase().contains("amazon");
             String compStore = isAmazon ? "Flipkart" : "Amazon.in";
-            BigDecimal compPrice = mainOffer.getPrice() != null
-                    ? mainOffer.getPrice().multiply(BigDecimal.valueOf(1.03)).setScale(0, java.math.RoundingMode.HALF_UP)
-                    : null;
             String compUrl = isAmazon
                     ? "https://www.flipkart.com/search?q=" + java.net.URLEncoder.encode(representative.getName(), java.nio.charset.StandardCharsets.UTF_8)
                     : "https://www.amazon.in/s?k=" + java.net.URLEncoder.encode(representative.getName(), java.nio.charset.StandardCharsets.UTF_8);
 
             ProductOffer compOffer = ProductOffer.builder()
                     .store(compStore)
-                    .price(compPrice)
+                    .price(null)  // Don't fabricate a price — let the user check
                     .currency(mainOffer.getCurrency())
                     .productUrl(compUrl)
-                    .availability("IN_STOCK")
-                    .deliveryInfo("2-3 business days")
-                    .originalPrice(mainOffer.getOriginalPrice())
-                    .discountPercentage(mainOffer.getDiscountPercentage())
+                    .availability("CHECK_STORE")
+                    .deliveryInfo("Check store for details")
                     .build();
 
             List<ProductOffer> list = new ArrayList<>(offers);
             list.add(compOffer);
-            list.sort(Comparator.comparing(o -> o.getPrice() != null ? o.getPrice() : BigDecimal.valueOf(Double.MAX_VALUE)));
             offers = list;
         }
 

@@ -93,6 +93,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- HTML Scraping (real product URLs & prices) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
         <!-- Dev -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -47,6 +47,10 @@ public class DuplicateDetectionService {
     }
 
     boolean areDuplicates(Product a, Product b) {
+        if (hasConflictingSpecs(a.getName(), b.getName())) {
+            return false;
+        }
+
         double nameSim = tokenSimilarity(a.getName(), b.getName());
         double brandSim = exactMatch(a.getBrand(), b.getBrand());
         double categorySim = exactMatch(a.getCategory(), b.getCategory());
@@ -54,6 +58,33 @@ public class DuplicateDetectionService {
         // Weighted combination: name matters most
         double score = (nameSim * 0.6) + (brandSim * 0.25) + (categorySim * 0.15);
         return score >= SIMILARITY_THRESHOLD;
+    }
+
+    private boolean hasConflictingSpecs(String nameA, String nameB) {
+        if (nameA == null || nameB == null) return false;
+        String a = nameA.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        String b = nameB.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+
+        // Exclusive spec pairs across hardware generations and capacities
+        String[][] exclusiveGroups = {
+                {"8gb", "16gb", "24gb", "32gb", "64gb"},
+                {"128gb", "256gb", "512gb", "1tb", "2tb"},
+                {"m1", "m2", "m3", "m4"},
+                {"i3", "i5", "i7", "i9"}
+        };
+
+        for (String[] group : exclusiveGroups) {
+            for (int i = 0; i < group.length; i++) {
+                for (int j = i + 1; j < group.length; j++) {
+                    String s1 = group[i];
+                    String s2 = group[j];
+                    if (a.contains(s1) && b.contains(s2) && !a.contains(s2) && !b.contains(s1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**

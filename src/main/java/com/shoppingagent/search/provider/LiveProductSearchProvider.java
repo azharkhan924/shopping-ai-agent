@@ -19,11 +19,12 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * Module 5 Live Provider — Queries the AI Shopping Brain to retrieve real-world
- * products currently sold in the Indian market (Amazon.in, Flipkart, Croma, Reliance Digital)
- * with authentic pricing, real models, direct store search links, and high-res imagery.
+ * Module 5 Live Provider — Queries the AI Shopping Brain to identify real-world
+ * products, then SCRAPES actual Amazon.in and Flipkart pages to get:
+ *   1. Direct product page URLs (not search pages)
+ *   2. Real, current market prices (not LLM-hallucinated approximations)
  *
- * Automatically falls back to MockProductSearchProvider if the AI is unreachable or times out.
+ * Falls back to search-page URLs only when scraping fails.
  */
 @Component
 @Order(1)
@@ -35,11 +36,14 @@ public class LiveProductSearchProvider implements ProductSearchProvider {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final RealPriceScraper realPriceScraper;
     private final MockProductSearchProvider fallback = new MockProductSearchProvider();
 
-    public LiveProductSearchProvider(ChatClient shoppingChatClient, ObjectMapper objectMapper) {
+    public LiveProductSearchProvider(ChatClient shoppingChatClient, ObjectMapper objectMapper,
+                                      RealPriceScraper realPriceScraper) {
         this.chatClient = shoppingChatClient;
         this.objectMapper = objectMapper;
+        this.realPriceScraper = realPriceScraper;
     }
 
     @Override
@@ -60,37 +64,30 @@ public class LiveProductSearchProvider implements ProductSearchProvider {
 
     private List<Product> fetchLiveProducts(ShoppingQuery query) throws Exception {
         String systemPrompt = """
-                You are Bachat AI's real-world Indian e-commerce catalog engine.
-                Your job is to provide 100% REAL, GENUINE products currently sold on Amazon.in, Flipkart, Croma, and Reliance Digital.
+                You are Bachat AI's product identification engine for the Indian market.
+                Your job is to identify 3 to 5 REAL, GENUINE products currently sold on Amazon.in and Flipkart.
 
-                CRITICAL INSTRUCTIONS FOR ACCURACY & PRICING:
-                1. Product Name: Give the concise, real official product name (e.g. "Apple MacBook Air M3 (13.6-inch)", "Sony WH-1000XM5 Wireless Headphones", "Pigeon Healthifry 4.2L Digital Air Fryer", "Philips Series 3000 Beard Trimmer").
-                2. Real Indian Retail Pricing: You MUST provide realistic, current Indian market prices in INR (₹):
-                   - MacBook Air M3: ₹1,04,990 (MRP: ₹1,14,900)
-                   - iPhone 15: ₹69,990 (MRP: ₹79,900)
-                   - boAt Rockerz 450: ₹1,299 (MRP: ₹3,990)
-                   - Noise ColorFit Pulse 2: ₹1,499 (MRP: ₹3,999)
-                   - Nike Revolution 6: ₹2,995 (MRP: ₹3,995)
-                   - Philips Trimmer: ₹1,499 (MRP: ₹2,195)
-                   - Air Fryer (Pigeon/Philips): ₹2,999 to ₹6,999
-                   Ensure originalPrice > price to reflect real Indian discounts and savings ("Bachat").
-                3. Direct Search Keyword: In "searchKeyword", give a clean 2 to 4 word search term that DIRECTLY hits this exact product on Amazon and Flipkart without failing (e.g. "MacBook Air M3", "Sony WH 1000XM5", "Pigeon Healthifry Air Fryer", "Philips Trimmer BT3211").
-                4. Any Category: Support ANY consumer product: electronics, smartphones, laptops, clothing, shoes, kitchen appliances, fitness, personal care, home, etc.
+                CRITICAL INSTRUCTIONS:
+                1. Product Name: Give the concise, real official product name (e.g. "Apple MacBook Air M3", "Sony WH-1000XM5", "Pigeon Healthifry 4.2L Air Fryer").
+                2. Search Keyword: In "searchKeyword", provide a PRECISE search term (2-5 words) that directly identifies THIS EXACT PRODUCT on Amazon.in and Flipkart.
+                   Examples: "MacBook Air M3 16GB", "Sony WH-1000XM5", "Pigeon Healthifry Air Fryer", "Philips BT3211 Trimmer"
+                3. Any Category: Support ANY consumer product: electronics, smartphones, laptops, clothing, shoes, kitchen, fitness, personal care, home, etc.
+                4. Price: Give your BEST ESTIMATE of the current Indian retail price in INR. This is ONLY used as a fallback — we will scrape actual prices.
 
-                Return ONLY a valid JSON array of 3 to 5 real products. No markdown, no backticks. Raw JSON array only.
+                Return ONLY a valid JSON array. No markdown, no backticks. Raw JSON array only.
 
                 JSON Object schema:
                 {
                   "name": "Concise official model name",
                   "brand": "Official brand name",
-                  "category": "General category (e.g. laptop, shoes, kitchen, audio, phone, personal care)",
-                  "searchKeyword": "Clean 2-4 word search term for direct store hit",
+                  "category": "General category",
+                  "searchKeyword": "Precise 2-5 word search term for exact store match",
                   "description": "Short 1-sentence product highlight",
                   "price": 35990,
                   "originalPrice": 49990,
                   "rating": 4.4,
                   "reviewCount": 4200,
-                  "store": "Amazon.in | Flipkart | Croma",
+                  "store": "Amazon.in",
                   "specifications": { "key": "value" }
                 }
                 Ensure prices strictly respect any budget specified by the user.
@@ -144,12 +141,12 @@ public class LiveProductSearchProvider implements ProductSearchProvider {
             String category = node.path("category").asText(cat).trim();
             String desc = node.path("description").asText(name);
             String searchKeyword = node.path("searchKeyword").asText("").trim();
-            double priceVal = node.path("price").asDouble(0.0);
-            if (priceVal <= 0) continue;
+            double llmPriceVal = node.path("price").asDouble(0.0);
+            if (llmPriceVal <= 0) continue;
 
-            double origPriceVal = node.path("originalPrice").asDouble(priceVal * 1.25);
-            if (origPriceVal <= priceVal) {
-                origPriceVal = Math.round(priceVal * 1.28);
+            double llmOrigPriceVal = node.path("originalPrice").asDouble(llmPriceVal * 1.25);
+            if (llmOrigPriceVal <= llmPriceVal) {
+                llmOrigPriceVal = Math.round(llmPriceVal * 1.28);
             }
             double rating = node.path("rating").asDouble(4.3);
             int reviews = node.path("reviewCount").asInt(1500);
@@ -161,38 +158,132 @@ public class LiveProductSearchProvider implements ProductSearchProvider {
                 specsNode.fields().forEachRemaining(entry -> specs.put(entry.getKey(), entry.getValue().asText()));
             }
 
-            // Generate clean canonical search URL that directly hits the exact product
+            // Build clean search term for scraping
             String effectiveSearchTerm = !searchKeyword.isBlank()
                     ? cleanSearchTerm(brand, searchKeyword)
                     : cleanSearchTerm(brand, name);
 
-            String productUrl = buildStoreSearchUrl(store, effectiveSearchTerm);
+            // ─── SCRAPE REAL DATA ───────────────────────────────────────────
+            // Scrape real prices and direct product URLs from Amazon.in & Flipkart
+            List<RealPriceScraper.ScrapedProduct> scraped = realPriceScraper.scrapeAll(effectiveSearchTerm);
+
             String imageUrl = resolveImageUrl(category, name);
 
-            Product product = Product.builder()
-                    .id("real-" + UUID.randomUUID().toString().substring(0, 8))
-                    .name(name)
-                    .brand(brand)
-                    .category(category.toLowerCase(Locale.ROOT))
-                    .description(desc)
-                    .imageUrl(imageUrl)
-                    .price(BigDecimal.valueOf(priceVal))
-                    .originalPrice(BigDecimal.valueOf(origPriceVal))
-                    .discountPercentage(calculateDiscount(priceVal, origPriceVal))
-                    .currency("INR")
-                    .rating(rating)
-                    .reviewCount(reviews)
-                    .store(store)
-                    .productUrl(productUrl)
-                    .availability(Availability.IN_STOCK)
-                    .deliveryInfo("1-2 business days")
-                    .specifications(specs)
-                    .source(SOURCE)
-                    .lastCheckedAt(Instant.now())
-                    .build();
+            if (!scraped.isEmpty()) {
+                // Use SCRAPED data — real prices, real direct URLs
+                for (RealPriceScraper.ScrapedProduct sp : scraped) {
+                    BigDecimal realPrice = sp.price();
+                    BigDecimal realOrigPrice = sp.originalPrice() != null ? sp.originalPrice()
+                            : realPrice.multiply(BigDecimal.valueOf(1.15)).setScale(0, java.math.RoundingMode.HALF_UP);
 
-            products.add(product);
+                    double realPriceD = realPrice.doubleValue();
+                    double realOrigD = realOrigPrice.doubleValue();
+
+                    Product product = Product.builder()
+                            .id("real-" + UUID.randomUUID().toString().substring(0, 8))
+                            .name(sp.title() != null && sp.title().length() > 5 ? sp.title() : name)
+                            .brand(brand)
+                            .category(category.toLowerCase(Locale.ROOT))
+                            .description(desc)
+                            .imageUrl(imageUrl)
+                            .price(realPrice)
+                            .originalPrice(realOrigPrice)
+                            .discountPercentage(calculateDiscount(realPriceD, realOrigD))
+                            .currency("INR")
+                            .rating(rating)
+                            .reviewCount(reviews)
+                            .store(sp.store())
+                            .productUrl(sp.directUrl())   // ← DIRECT PRODUCT PAGE URL
+                            .availability(Availability.IN_STOCK)
+                            .deliveryInfo("1-2 business days")
+                            .specifications(specs)
+                            .source(SOURCE + "_VERIFIED")
+                            .lastCheckedAt(Instant.now())
+                            .build();
+
+                    products.add(product);
+                }
+                log.info("✓ Scraped {} REAL offers for '{}' (search: '{}')", scraped.size(), name, effectiveSearchTerm);
+            } else {
+                // FALLBACK: scraping failed — use LLM price + search URL (old behavior)
+                log.warn("✗ Scraping failed for '{}' — using LLM estimates with search URLs", name);
+                String productUrl = buildStoreSearchUrl(store, effectiveSearchTerm);
+
+                Product product = Product.builder()
+                        .id("real-" + UUID.randomUUID().toString().substring(0, 8))
+                        .name(name)
+                        .brand(brand)
+                        .category(category.toLowerCase(Locale.ROOT))
+                        .description(desc)
+                        .imageUrl(imageUrl)
+                        .price(BigDecimal.valueOf(llmPriceVal))
+                        .originalPrice(BigDecimal.valueOf(llmOrigPriceVal))
+                        .discountPercentage(calculateDiscount(llmPriceVal, llmOrigPriceVal))
+                        .currency("INR")
+                        .rating(rating)
+                        .reviewCount(reviews)
+                        .store(store)
+                        .productUrl(productUrl)
+                        .availability(Availability.IN_STOCK)
+                        .deliveryInfo("1-2 business days")
+                        .specifications(specs)
+                        .source(SOURCE + "_ESTIMATED")
+                        .lastCheckedAt(Instant.now())
+                        .build();
+
+                products.add(product);
+            }
             index++;
+        }
+
+        // Also perform direct scrape of the primary search query if available
+        List<String> queryParts = new ArrayList<>();
+        if (query.getBrands() != null) queryParts.addAll(query.getBrands());
+        if (query.getKeywords() != null) queryParts.addAll(query.getKeywords());
+        String directQueryTerm = String.join(" ", queryParts).trim();
+        if (!directQueryTerm.isBlank() && directQueryTerm.length() > 3) {
+            List<RealPriceScraper.ScrapedProduct> directScraped = realPriceScraper.scrapeAll(directQueryTerm);
+            for (RealPriceScraper.ScrapedProduct sp : directScraped) {
+                BigDecimal realPrice = sp.price();
+                BigDecimal realOrigPrice = sp.originalPrice() != null ? sp.originalPrice()
+                        : realPrice.multiply(BigDecimal.valueOf(1.15)).setScale(0, java.math.RoundingMode.HALF_UP);
+                double realPriceD = realPrice.doubleValue();
+                double realOrigD = realOrigPrice.doubleValue();
+
+                products.add(Product.builder()
+                        .id("real-" + UUID.randomUUID().toString().substring(0, 8))
+                        .name(sp.title() != null ? sp.title() : directQueryTerm)
+                        .brand(!query.getBrands().isEmpty() ? query.getBrands().get(0) : "Generic")
+                        .category(cat.toLowerCase(Locale.ROOT))
+                        .description(sp.title() != null ? sp.title() : directQueryTerm)
+                        .imageUrl(resolveImageUrl(cat, sp.title()))
+                        .price(realPrice)
+                        .originalPrice(realOrigPrice)
+                        .discountPercentage(calculateDiscount(realPriceD, realOrigD))
+                        .currency("INR")
+                        .rating(4.5)
+                        .reviewCount(2500)
+                        .store(sp.store())
+                        .productUrl(sp.directUrl())
+                        .availability(Availability.IN_STOCK)
+                        .deliveryInfo("1-2 business days")
+                        .source(SOURCE + "_VERIFIED")
+                        .lastCheckedAt(Instant.now())
+                        .build());
+            }
+        }
+
+        // If we found ANY verified real products, drop ALL unverified fallback products
+        // to prevent LLM hallucinated prices from polluting the comparison
+        boolean hasVerified = products.stream()
+                .anyMatch(p -> p.getSource() != null && p.getSource().endsWith("_VERIFIED"));
+        if (hasVerified) {
+            List<Product> verifiedOnly = products.stream()
+                    .filter(p -> p.getSource() != null && p.getSource().endsWith("_VERIFIED"))
+                    .toList();
+            log.info("LiveProductSearchProvider: Returning {} VERIFIED products (dropped {} unverified fallbacks)",
+                    verifiedOnly.size(), products.size() - verifiedOnly.size());
+            return verifiedOnly;
         }
 
         return products;
@@ -239,10 +330,10 @@ public class LiveProductSearchProvider implements ProductSearchProvider {
             }
         }
 
-        // Limit to first 4-5 meaningful words so store search hits the direct product
+        // Limit to first 5-6 meaningful words for precise scraping
         String[] words = clean.split("\\s+");
-        if (words.length > 5) {
-            clean = String.join(" ", java.util.Arrays.copyOfRange(words, 0, 5));
+        if (words.length > 6) {
+            clean = String.join(" ", java.util.Arrays.copyOfRange(words, 0, 6));
         }
         return clean.trim();
     }
