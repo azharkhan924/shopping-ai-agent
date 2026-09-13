@@ -43,6 +43,14 @@ public class ProductSearchService {
 
         List<Product> filtered = filter.apply(outcome.products(), query);
 
+        if (filtered.isEmpty() && !outcome.products().isEmpty()) {
+            boolean allExceedMaxPrice = query.getMaxPrice() != null && outcome.products().stream()
+                    .allMatch(p -> p.getPrice() != null && p.getPrice().compareTo(java.math.BigDecimal.valueOf(query.getMaxPrice())) > 0);
+            if (!allExceedMaxPrice) {
+                filtered = outcome.products();
+            }
+        }
+
         return SearchResult.builder()
                 .query(query)
                 .products(filtered)

@@ -203,7 +203,7 @@ body {
     flex: 1; overflow-y: auto; overflow-x: hidden;
     padding: 2rem 1.5rem;
     display: flex; flex-direction: column;
-    max-width: 800px; width: 100%; margin: 0 auto;
+    max-width: 880px; width: 100%; margin: 0 auto;
 }
 
 /* Empty State */
@@ -327,9 +327,19 @@ body {
     display: flex; align-items: center; gap: 0.75rem;
     margin-top: 0.5rem; font-size: 0.82rem; flex-wrap: wrap;
 }
-.product-price { font-size: 1.15rem; font-weight: 700; color: var(--foreground); }
-.product-original-price { font-size: 0.85rem; color: var(--muted-foreground); text-decoration: line-through; }
+.product-price { font-size: 1.2rem; font-weight: 700; color: var(--foreground); }
+.product-original-price { font-size: 0.88rem; color: var(--muted-foreground); text-decoration: line-through; }
 .product-discount { font-size: 0.75rem; font-weight: 600; color: #16a34a; background: #f0fdf4; padding: 0.15rem 0.4rem; border-radius: 0.25rem; }
+
+.bachat-badge {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.2rem 0.65rem; border-radius: 2rem;
+    font-size: 0.72rem; font-weight: 700;
+    background: #ecfdf5; color: #047857;
+    border: 1px solid #a7f3d0;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.1);
+}
+
 .product-rating { display: flex; align-items: center; gap: 0.2rem; color: var(--copper); font-weight: 600; }
 .product-score { color: var(--muted-foreground); font-size: 0.75rem; }
 
@@ -351,36 +361,55 @@ body {
 
 .product-offers {
     margin-top: 0.85rem;
-    background: oklch(0.98 0.005 80); border-radius: 0.6rem;
-    padding: 0.6rem 0.85rem;
+    background: oklch(0.98 0.005 80); border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid oklch(0.93 0.015 80);
 }
-.product-offers-title { font-size: 0.75rem; font-weight: 600; color: var(--muted-foreground); margin-bottom: 0.4rem; }
+.product-offers-title { font-size: 0.78rem; font-weight: 600; color: var(--foreground); margin-bottom: 0.5rem; }
 .offer-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0.4rem 0; border-top: 1px solid oklch(0.94 0.01 82);
-    font-size: 0.82rem; gap: 0.5rem;
+    padding: 0.5rem 0; border-top: 1px solid oklch(0.94 0.01 82);
+    font-size: 0.85rem; gap: 0.5rem;
 }
 .offer-row:first-of-type { border-top: none; }
 .offer-store {
     font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;
 }
-.offer-price { font-weight: 700; color: var(--foreground); }
+.offer-price { font-weight: 700; color: var(--foreground); font-size: 0.95rem; }
 .offer-btn {
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.3rem 0.65rem; border-radius: 0.4rem;
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.4rem 0.85rem; border-radius: 0.5rem;
     background: var(--copper); color: white;
-    text-decoration: none; font-size: 0.75rem; font-weight: 600;
-    transition: background 0.15s ease, transform 0.1s ease;
+    text-decoration: none; font-size: 0.78rem; font-weight: 600;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 .offer-btn:hover {
-    background: oklch(0.55 0.12 50); transform: translateY(-1px);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
     color: white; text-decoration: none;
+}
+.offer-btn.btn-amazon {
+    background: #ff9900;
+    color: #111;
+}
+.offer-btn.btn-amazon:hover {
+    background: #e68a00;
+    color: #111;
+}
+.offer-btn.btn-flipkart {
+    background: #2874f0;
+    color: #fff;
+}
+.offer-btn.btn-flipkart:hover {
+    background: #1a5ac4;
+    color: #fff;
 }
 
 /* Progress Bar */
 .progress-bar {
     padding: 0 1.5rem;
-    max-width: 800px; width: 100%; margin: 0 auto;
+    max-width: 880px; width: 100%; margin: 0 auto;
 }
 .progress-content {
     display: flex; align-items: center; gap: 0.75rem;
@@ -403,7 +432,7 @@ body {
 /* Composer */
 .composer-wrapper {
     padding: 0 1.5rem 1.5rem;
-    max-width: 800px; width: 100%; margin: 0 auto;
+    max-width: 880px; width: 100%; margin: 0 auto;
 }
 .composer {
     border: 1px solid var(--border); border-radius: 1.5rem;

@@ -595,12 +595,18 @@ function createProductCards(products) {
             orig.textContent = `₹${Math.round(rep.originalPrice).toLocaleString('en-IN')}`;
             meta.appendChild(orig);
 
-            if (rep.discountPercentage) {
-                const disc = document.createElement('span');
-                disc.className = 'product-discount';
-                disc.textContent = `${Math.round(rep.discountPercentage)}% OFF`;
-                meta.appendChild(disc);
-            }
+            const savings = rep.originalPrice - (product.bestPrice || 0);
+            const discPercent = rep.discountPercentage ? Math.round(rep.discountPercentage) : Math.round((savings / rep.originalPrice) * 100);
+
+            const bachatBadge = document.createElement('span');
+            bachatBadge.className = 'bachat-badge';
+            bachatBadge.textContent = `Save ₹${Math.round(savings).toLocaleString('en-IN')} (${discPercent}% OFF)`;
+            meta.appendChild(bachatBadge);
+        } else if (rep && rep.discountPercentage && rep.discountPercentage > 0) {
+            const disc = document.createElement('span');
+            disc.className = 'bachat-badge';
+            disc.textContent = `${Math.round(rep.discountPercentage)}% OFF Bachat`;
+            meta.appendChild(disc);
         }
 
         if (product.rating != null) {
@@ -654,7 +660,7 @@ function createProductCards(products) {
 
             const title = document.createElement('div');
             title.className = 'product-offers-title';
-            title.textContent = `Best deals from verified stores:`;
+            title.textContent = `Direct Store Links & Best Deals:`;
             offers.appendChild(title);
 
             product.offers.forEach(offer => {
@@ -674,11 +680,13 @@ function createProductCards(products) {
 
                 if (offer.productUrl) {
                     const link = document.createElement('a');
-                    link.className = 'offer-btn';
+                    const isFlipkart = storeName.toLowerCase().includes('flipkart');
+                    const isAmazon = storeName.toLowerCase().includes('amazon');
+                    link.className = `offer-btn ${isFlipkart ? 'btn-flipkart' : (isAmazon ? 'btn-amazon' : '')}`;
                     link.href = offer.productUrl;
                     link.target = '_blank';
                     link.rel = 'noopener noreferrer';
-                    const targetStore = storeName.includes('Flipkart') ? 'Flipkart' : (storeName.includes('Croma') ? 'Croma' : 'Amazon');
+                    const targetStore = isFlipkart ? 'Flipkart' : (isAmazon ? 'Amazon.in' : (storeName || 'Store'));
                     link.textContent = `Buy on ${targetStore} ↗`;
                     row.appendChild(link);
                 }

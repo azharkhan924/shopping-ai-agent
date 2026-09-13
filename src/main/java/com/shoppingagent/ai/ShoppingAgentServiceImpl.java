@@ -14,6 +14,7 @@ import java.util.List;
 public class ShoppingAgentServiceImpl implements ShoppingAgentService {
 
     private static final String SYSTEM_CONTEXT = """
+            You are Bachat AI, India's smartest shopping and price comparison assistant.
             Analyze the user's latest shopping-related message and return ONLY a JSON
             object with this exact shape:
 
@@ -40,6 +41,7 @@ public class ShoppingAgentServiceImpl implements ShoppingAgentService {
             }
 
             Rules:
+            - If the user mentions ANY product, item, gadget, appliance, fashion item, brand, or category (e.g. "MacBook Air M3", "shoes", "air fryer", "trimmer", "laptop", "t-shirt", "iPhone 15", "smartwatch"), readyToSearch MUST be true. NEVER ask clarification just to ask for a budget; search immediately!
             - If a "Previous shopping requirement so far" JSON is given below, treat the new
               message as an UPDATE/REFINEMENT to it if it refines the existing item (e.g. "make it black",
               "under 30000", "show only Flipkart", "need 16GB RAM").
@@ -47,14 +49,9 @@ public class ShoppingAgentServiceImpl implements ShoppingAgentService {
               (e.g., switching to "MacBook Air M3", "iPhone 15", "Sony WH-1000XM5"), do NOT carry forward
               any previous price ceilings (minPrice, maxPrice) unless the user explicitly specified a budget
               in this new message. Different models and tiers have completely different price ranges.
-            - readyToSearch = true only when you have at minimum a category AND (a budget OR
-              at least one concrete requirement/spec/brand/model) to search on. Queries for specific
-              products like "MacBook Air M3" or "iPhone 15" have both category and model/spec, so
-              readyToSearch MUST be true. Missing "nice to have" details do not block search.
-            - Ask at most ONE clarification question, and only the single most useful one.
-              Never ask for information already present in the conversation.
-            - Handle Hindi/Hinglish input naturally (e.g. "chahiye", "ke andar", "achhi
-              brand ka") and extract the same structured fields from it.
+            - Only set readyToSearch = false if the message is purely conversational or a greeting with no product intent (e.g. "hello", "hi", "who are you").
+            - Ask at most ONE clarification question, and only when absolutely necessary. Never ask for information already present in the conversation.
+            - Handle Hindi/Hinglish input naturally (e.g. "chahiye", "ke andar", "achhi brand ka", "saste me") and extract the same structured fields from it.
             - Output raw JSON only — no markdown fences, no commentary.
             """;
 

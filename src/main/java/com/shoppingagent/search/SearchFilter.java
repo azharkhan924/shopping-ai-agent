@@ -30,6 +30,8 @@ public class SearchFilter {
     private boolean matchesCategory(Product p, ShoppingQuery query) {
         if (isBlank(query.getCategory())) return true;
         if (p.getCategory() == null) return true; // unknown category -> don't exclude
+        if ("LIVE_AI".equalsIgnoreCase(p.getSource())) return true; // targeted live provider result
+
         String want = query.getCategory().toLowerCase(Locale.ROOT).trim();
         String have = p.getCategory().toLowerCase(Locale.ROOT).trim();
         if (have.contains(want) || want.contains(have)) return true;
@@ -40,13 +42,26 @@ public class SearchFilter {
 
         if (matchesSynonyms(wantClean, haveClean)) return true;
 
-        // Check if product name contains any significant word from the category
+        // Check if product name or description contains any significant word from the category
         String prodName = p.getName() != null ? p.getName().toLowerCase(Locale.ROOT) : "";
         for (String word : want.split("[\\s/,-]+")) {
             if (word.length() >= 3 && prodName.contains(word)) {
                 return true;
             }
         }
+
+        // Check if query keywords match product name or category
+        if (query.getKeywords() != null) {
+            for (String kw : query.getKeywords()) {
+                if (kw != null && kw.length() >= 3) {
+                    String kwLower = kw.toLowerCase(Locale.ROOT);
+                    if (prodName.contains(kwLower) || have.contains(kwLower)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
         return false;
     }
 
@@ -57,6 +72,22 @@ public class SearchFilter {
         }
         if ((want.contains("laptop") || want.contains("notebook") || want.contains("macbook") || want.contains("ultrabook") || want.contains("chromebook") || want.contains("computer") || want.contains("pc"))
                 && (have.contains("laptop") || have.contains("notebook") || have.contains("macbook") || have.contains("ultrabook") || have.contains("computer") || have.contains("pc"))) {
+            return true;
+        }
+        if ((want.contains("smartwatch") || want.contains("watch") || want.contains("band") || want.contains("tracker") || want.contains("wearable"))
+                && (have.contains("smartwatch") || have.contains("watch") || have.contains("band") || have.contains("wearable"))) {
+            return true;
+        }
+        if ((want.contains("phone") || want.contains("mobile") || want.contains("smartphone") || want.contains("iphone") || want.contains("android") || want.contains("cellular"))
+                && (have.contains("phone") || have.contains("mobile") || have.contains("smartphone") || have.contains("iphone") || have.contains("cellular"))) {
+            return true;
+        }
+        if ((want.contains("fryer") || want.contains("airfryer") || want.contains("kitchen") || want.contains("appliance") || want.contains("mixer") || want.contains("cooker"))
+                && (have.contains("fryer") || have.contains("airfryer") || have.contains("kitchen") || have.contains("appliance") || have.contains("mixer") || have.contains("cooker"))) {
+            return true;
+        }
+        if ((want.contains("trimmer") || want.contains("shaver") || want.contains("groom") || want.contains("personalcare"))
+                && (have.contains("trimmer") || have.contains("shaver") || have.contains("groom") || have.contains("personalcare"))) {
             return true;
         }
         if ((want.contains("smartwatch") || want.contains("watch") || want.contains("band") || want.contains("tracker") || want.contains("wearable"))

@@ -254,18 +254,16 @@ public class ShoppingAgentPipelineService {
      */
     private String generateExplanation(List<ProductGroup> ranked, ShoppingQuery query) {
         if (ranked.isEmpty()) {
-            return "I couldn't find any products matching your requirements.";
+            return "I couldn't find any products matching your requirements. Try a different budget or category!";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("I found ").append(ranked.size())
-                .append(ranked.size() == 1 ? " option" : " options")
-                .append(" for you");
+        sb.append("Here are the best deals with maximum savings for you");
 
         if (query != null && query.getCategory() != null) {
             sb.append(" in **").append(query.getCategory()).append("**");
         }
-        sb.append(".\n\n");
+        sb.append(":\n\n");
 
         for (int i = 0; i < Math.min(ranked.size(), 5); i++) {
             ProductGroup g = ranked.get(i);
@@ -356,7 +354,7 @@ public class ShoppingAgentPipelineService {
             return RequirementAnalysis.builder()
                     .intent(ShoppingIntent.GENERAL_SHOPPING_QUERY)
                     .readyToSearch(false)
-                    .clarificationQuestion("Hello! I'm Penny, your AI shopping assistant. Tell me what product you're looking for, your budget, or preferred brand!")
+                    .clarificationQuestion("Namaste! I'm Bachat AI, your personal shopping and savings assistant. Tell me what product you're looking for, your budget, or preferred brand!")
                     .build();
         }
 
@@ -373,6 +371,12 @@ public class ShoppingAgentPipelineService {
             category = "smartwatch";
         } else if (lower.contains("shoe") || lower.contains("sneaker") || lower.contains("footwear") || lower.contains("running")) {
             category = "shoes";
+        } else if (lower.contains("trimmer") || lower.contains("shaver") || lower.contains("groomer")) {
+            category = "personal care";
+        } else if (lower.contains("fryer") || lower.contains("airfryer") || lower.contains("mixer") || lower.contains("blender") || lower.contains("oven")) {
+            category = "kitchen";
+        } else if (lower.contains("shirt") || lower.contains("t-shirt") || lower.contains("jeans") || lower.contains("clothing")) {
+            category = "clothing";
         } else if (lower.contains("mouse") || lower.contains("mice")) {
             category = "mouse";
         } else if (lower.contains("keyboard")) {
